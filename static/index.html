@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+	<head>
+	</head>
+	<body>
+		<p>Round Trip: <span id="roundTrip"></span></p>
+		<p>To: <span id="to"></span></p>
+		<p>From: <span id="from"></span></p>
+		<script>
+			const socket = new WebSocket('ws://localhost:8000/ws/');
+			const roundTripTimes = [];
+			const toServerTimes = [];
+			const fromServerTimes = [];
+
+			function ping() {
+				const timestamp = performance.now();
+				socket.send(JSON.stringify({
+					timestamp: timestamp,
+					send_time: Date.now()
+				}));
+			}
+
+			function mean(a) {
+				return a.reduce((acc, val) => acc + val, 0) / a.length;
+			}
+
+			function append(a, v) {
+				if (a.length > 1000) {
+					a.shift();
+				}
+				a.push(v);
+			}
+
+			socket.onmessage = (event) => {
+				const msg = JSON.parse(event.data);
+				append(roundTripTimes, performance.now() - msg.timestamp);
+				append(toServerTimes, (msg.recv_time * 1000) - msg.send_time);
+				append(fromServerTimes, Date.now() - (msg.recv_time * 1000));
+
+				document.getElementById('roundTrip')
+				.textContent = mean(roundTripTimes).toFixed(2) + 'ms';
+
+				document.getElementById('to')
+				.textContent = mean(toServerTimes).toFixed(2) + 'ms';
+
+				document.getElementById('from')
+				.textContent = mean(fromServerTimes).toFixed(2) + 'ms';
+
+				ping();
+			};
+			socket.onopen = () => {
+				ping();
+			};
+		</script>
+	</body>
+</html>
